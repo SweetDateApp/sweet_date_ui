@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background: #fff0f3;
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .btn-romantic {
+    @apply relative overflow-hidden px-8 py-3 rounded-2xl font-display font-bold text-white
+           bg-rose-500 shadow-[0_0_20px_rgba(255,42,78,0.4)]
+           transition-all duration-300 cursor-pointer border-none
+           hover:scale-105 hover:shadow-[0_0_30px_rgba(255,42,78,0.6)]
+           active:scale-95;
+  }
+  .btn-romantic::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .btn-romantic:hover::before {
+    opacity: 1;
+  }
+}
+
+/* Floating hearts cursor effect */
+.heart-cursor {
+  position: fixed;
+  pointer-events: none;
+  animation: floatHeart 2s linear forwards;
+  z-index: 9999;
+  font-size: 1.2rem;
+}
+
+@keyframes floatHeart {
+  0%   { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translateY(-80px) rotate(45deg) scale(0.3); }
+}
+
+/* Carousel hover scroll */
+.carousel-track {
+  transition: transform 0.4s ease;
+}
+.carousel-wrapper:hover .carousel-track {
+  animation: carouselScroll 5s linear infinite;
+}
+@keyframes carouselScroll {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+/* Slider range romantic style */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #ff2a4e, #ff94b0, #ffc2d4);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ff2a4e;
+  box-shadow: 0 0 8px rgba(255,42,78,0.6);
+  cursor: pointer;
+}
+
+/* Typing animation container */
+.typing-text {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typing 8s steps(7) infinite;
+}
+.typing-cursor::after {
+  content: '|';
+  animation: blinkCursor 0.8s steps(3) infinite;
+  color: #ff2a4e;
+}
+
+/* Progress bar animation */
+.progress-bar-fill {
+  animation: progressFill 10s linear forwards;
+}
+@keyframes progressFill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* Checkbox glow */
+input[type="checkbox"]:checked ~ h2 {
+  text-shadow: 0 0 10px rgba(255, 42, 78, 0.6);
+  color: #ff2a4e;
+}
