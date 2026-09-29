@@ -1,5 +1,7 @@
 # Sweet Date — Frontend React + Vite + TypeScript + Tailwind
 
+[![CI](https://github.com/SweetDateApp/sweet_date_ui/actions/workflows/ci.yml/badge.svg?branch=preprod)](https://github.com/SweetDateApp/sweet_date_ui/actions/workflows/ci.yml) [![CD preprod](https://github.com/SweetDateApp/sweet_date_ui/actions/workflows/cd.yml/badge.svg?branch=preprod)](https://github.com/SweetDateApp/sweet_date_ui/actions/workflows/cd.yml?query=branch%3Apreprod) [![CD prod](https://github.com/SweetDateApp/sweet_date_ui/actions/workflows/cd.yml/badge.svg?branch=prod)](https://github.com/SweetDateApp/sweet_date_ui/actions/workflows/cd.yml?query=branch%3Aprod)
+
 ## Installation
 
 ```bash
