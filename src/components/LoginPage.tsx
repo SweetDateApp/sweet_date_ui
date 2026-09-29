@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useAuth, type RegisterData } from "../context/AuthContext";
-import { ApiError } from "../lib/api";
+import type { FormEvent } from "react";
+import { useAuth } from "../context/useAuth";
+import { errorMessage, type RegisterData } from "../lib/api";
 import heartSD from "../assets/SD.png";
-
-interface LoginPageProps { onLogin: () => void; }
 
 type Mode = "login" | "register";
 
@@ -14,7 +13,7 @@ const inputCls = `
   transition-all text-center font-body text-base
 `;
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage() {
   const { login, register } = useAuth();
   const [mode, setMode]     = useState<Mode>("login");
   const [error, setError]   = useState("");
@@ -31,47 +30,49 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   });
 
   const handleLogin = async () => {
-    if (!username || !password) { setError("Tous les champs sont requis."); return; }
+    if (!username.trim() || !password) { setError("Tous les champs sont requis."); return; }
     setBusy(true); setError("");
     try {
-      await login(username, password);
-      onLogin();
+      await login(username.trim(), password);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Erreur de connexion.");
-    } finally { setBusy(false); }
+      setError(errorMessage(e, "Erreur de connexion."));
+      setBusy(false);
+    }
   };
 
   const handleRegister = async () => {
     const { username, password, password_confirm, email_partner1, email_partner2 } = reg;
-    if (!username || !password || !email_partner1 || !email_partner2) {
+    if (!username.trim() || !password || !email_partner1 || !email_partner2) {
       setError("Tous les champs sont requis."); return;
     }
     if (password !== password_confirm) { setError("Les mots de passe ne correspondent pas."); return; }
     setBusy(true); setError("");
     try {
-      await register(reg);
-      onLogin();
+      await register({ ...reg, username: username.trim() });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Erreur lors de la création du compte.");
-    } finally { setBusy(false); }
+      setError(errorMessage(e, "Erreur lors de la création du compte."));
+      setBusy(false);
+    }
   };
 
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") mode === "login" ? handleLogin() : handleRegister();
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (mode === "login") handleLogin();
+    else handleRegister();
   };
 
   return (
     <div className="fixed inset-0 bg-rose-50 flex items-center justify-center overflow-y-auto py-8">
-      <div className="flex flex-col items-center gap-4 w-full max-w-sm px-6 animate-slide-up">
+      <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4 w-full max-w-sm px-6 animate-slide-up">
         <div className="animate-float text-7xl mb-1 select-none">
-          <img src={heartSD} alt="love loading" />
+          <img src={heartSD} alt="Sweet Date" />
         </div>
         <h1 className="font-display text-3xl text-rose-600 text-center italic">Sweet Date</h1>
 
         {/* Toggle login / register */}
         <div className="flex w-full bg-rose-100 rounded-2xl p-1 gap-1">
           {(["login", "register"] as Mode[]).map(m => (
-            <button key={m}
+            <button key={m} type="button"
               onClick={() => { setMode(m); setError(""); }}
               className={`flex-1 py-2 rounded-xl text-sm font-body font-semibold transition-all ${
                 mode === m ? "bg-white text-rose-600 shadow-sm" : "text-rose-300 hover:text-rose-400"
@@ -86,9 +87,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         {mode === "login" && (
           <div className="w-full flex flex-col gap-3">
             <input className={inputCls} type="text" placeholder="Identifiant"
-              value={username} onChange={e => setUsername(e.target.value)} onKeyDown={handleKey} />
+              value={username} onChange={e => setUsername(e.target.value)} />
             <input className={inputCls} type="password" placeholder="Mot de passe"
-              value={password} onChange={e => setPassword(e.target.value)} onKeyDown={handleKey} />
+              value={password} onChange={e => setPassword(e.target.value)} />
           </div>
         )}
 
@@ -96,13 +97,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         {mode === "register" && (
           <div className="w-full flex flex-col gap-3">
             <input className={inputCls} type="text" placeholder="Identifiant"
-              value={reg.username} onKeyDown={handleKey}
+              value={reg.username}
               onChange={e => setReg(r => ({ ...r, username: e.target.value }))} />
             <input className={inputCls} type="password" placeholder="Mot de passe (min. 8 caractères)"
-              value={reg.password} onKeyDown={handleKey}
+              value={reg.password}
               onChange={e => setReg(r => ({ ...r, password: e.target.value }))} />
             <input className={inputCls} type="password" placeholder="Confirmer le mot de passe"
-              value={reg.password_confirm} onKeyDown={handleKey}
+              value={reg.password_confirm}
               onChange={e => setReg(r => ({ ...r, password_confirm: e.target.value }))} />
 
             <div className="border-t border-rose-100 pt-3">
@@ -111,10 +112,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               </p>
               <div className="flex flex-col gap-2">
                 <input className={inputCls} type="email" placeholder="Email partenaire 1 (vous)"
-                  value={reg.email_partner1} onKeyDown={handleKey}
+                  value={reg.email_partner1}
                   onChange={e => setReg(r => ({ ...r, email_partner1: e.target.value }))} />
                 <input className={inputCls} type="email" placeholder="Email partenaire 2 (lui 💕)"
-                  value={reg.email_partner2} onKeyDown={handleKey}
+                  value={reg.email_partner2}
                   onChange={e => setReg(r => ({ ...r, email_partner2: e.target.value }))} />
               </div>
             </div>
@@ -122,7 +123,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         )}
 
         <button
-          onClick={mode === "login" ? handleLogin : handleRegister}
+          type="submit"
           disabled={busy}
           className="btn-romantic w-full text-lg mt-1 disabled:opacity-60 disabled:cursor-not-allowed"
         >
@@ -132,7 +133,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         {error && (
           <p className="text-sm font-body text-center text-rose-500 animate-fade-in">{error}</p>
         )}
-      </div>
+      </form>
     </div>
   );
 }
