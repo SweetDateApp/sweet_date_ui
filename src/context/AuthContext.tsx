@@ -1,33 +1,15 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
-import { apiAuth, auth, type ApiUser } from "../lib/api";
-
-interface AuthCtx {
-  user: ApiUser | null;
-  loading: boolean;
-  login:    (username: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  logout:   () => void;
-}
-
-export interface RegisterData {
-  username:        string;
-  password:        string;
-  password_confirm: string;
-  email_partner1:  string;
-  email_partner2:  string;
-}
-
-const AuthContext = createContext<AuthCtx | null>(null);
+import { apiAuth, auth, setSessionExpiredHandler, type ApiUser, type ProfileUpdate, type RegisterData } from "../lib/api";
+import { AuthContext } from "./auth-context";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]       = useState<ApiUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => auth.getAccess() !== null);
 
-  // Restore session on mount
   useEffect(() => {
-    const token = auth.getAccess();
-    if (!token) { setLoading(false); return; }
+    setSessionExpiredHandler(() => setUser(null));
+    if (!auth.getAccess()) return;
     apiAuth.me()
       .then(setUser)
       .catch(() => auth.clear())
@@ -46,20 +28,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }, []);
 
-  const logout = useCallback(() => {
-    auth.clear();
-    setUser(null);
+  const logout = useCallback(() => { auth.clear(); setUser(null); }, []);
+
+  const updateUser = useCallback(async (data: ProfileUpdate) => {
+    setUser(await apiAuth.updateProfile(data));
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  const uploadAvatar = useCallback(async (file: File) => {
+    setUser(await apiAuth.uploadAvatar(file));
+  }, []);
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
-  return ctx;
+  const value = useMemo(
+    () => ({ user, loading, login, register, logout, updateUser, uploadAvatar }),
+    [user, loading, login, register, logout, updateUser, uploadAvatar],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
