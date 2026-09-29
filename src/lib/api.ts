@@ -1,4 +1,6 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+import type { DateActivity } from "../types";
+
+const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(/\/+$/, "");
 
 // ─── Token storage ───────────────────────────────────────────────────────────
 const TOKEN_KEY   = "sd_access";
@@ -17,56 +19,10 @@ export const auth = {
   },
 };
 
-// ─── Base fetch with JWT auto-refresh ────────────────────────────────────────
-async function apiFetch<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
-  const token = auth.getAccess();
-  const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string>),
-  };
-  // Don't set Content-Type for FormData (browser sets it with boundary)
-  if (!(options.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
-  }
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-
-  if (res.status === 401 && retry) {
-    const refreshed = await tryRefresh();
-    if (refreshed) return apiFetch<T>(path, options, false);
-    auth.clear();
-    throw new ApiError(401, "Session expirée. Veuillez vous reconnecter.");
-  }
-
-  if (res.status === 204) return undefined as T;
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    const d = data as Record<string, unknown>;
-    const message: string =
-      typeof d?.detail === "string"
-        ? d.detail
-        : (Object.values(d).flat() as string[]).join(" ") || "Erreur inconnue";
-    throw new ApiError(res.status, message);
-  }
-  return data as T;
-}
-
-async function tryRefresh(): Promise<boolean> {
-  const refresh = auth.getRefresh();
-  if (!refresh) return false;
-  try {
-    const res = await fetch(`${BASE_URL}/auth/refresh/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
-    });
-    if (!res.ok) return false;
-    const { access, refresh: newRefresh } = await res.json();
-    auth.set(access, newRefresh ?? refresh);
-    return true;
-  } catch { return false; }
+// Appelé quand la session ne peut plus être renouvelée (AuthProvider s'y abonne).
+let onSessionExpired: () => void = () => {};
+export function setSessionExpiredHandler(handler: () => void) {
+  onSessionExpired = handler;
 }
 
 export class ApiError extends Error {
@@ -76,6 +32,74 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
   }
+}
+
+export function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof ApiError ? e.message : fallback;
+}
+
+// ─── Base fetch with JWT auto-refresh ────────────────────────────────────────
+async function apiFetch<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
+  const token = auth.getAccess();
+  const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
+  // Pas de Content-Type pour FormData : le navigateur ajoute le boundary.
+  if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  } catch {
+    throw new ApiError(0, "Impossible de joindre le serveur. Vérifiez votre connexion.");
+  }
+
+  // Un 401 sur une requête authentifiée = access token expiré. Sans token (ex. login), on garde le message du serveur.
+  if (res.status === 401 && token && retry) {
+    if (await refreshTokens()) return apiFetch<T>(path, options, false);
+    auth.clear();
+    onSessionExpired();
+    throw new ApiError(401, "Session expirée. Veuillez vous reconnecter.");
+  }
+
+  if (res.status === 204) return undefined as T;
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, extractMessage(data));
+  return data as T;
+}
+
+function extractMessage(data: unknown): string {
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    if (typeof d.detail === "string") return d.detail;
+    const messages = Object.values(d).flat().filter((m): m is string => typeof m === "string");
+    if (messages.length) return messages.join(" ");
+  }
+  return "Une erreur inattendue est survenue.";
+}
+
+// Plusieurs requêtes peuvent expirer en même temps : un seul refresh à la fois.
+let refreshing: Promise<boolean> | null = null;
+
+function refreshTokens(): Promise<boolean> {
+  refreshing ??= (async () => {
+    const refresh = auth.getRefresh();
+    if (!refresh) return false;
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+      });
+      if (!res.ok) return false;
+      const { access, refresh: newRefresh } = await res.json();
+      auth.set(access, newRefresh ?? refresh);
+      return true;
+    } catch {
+      return false;
+    }
+  })().finally(() => { refreshing = null; });
+  return refreshing;
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -94,10 +118,11 @@ export interface ApiDatePlan {
   time: string | null;
   location: string;
   excitement: number;
-  activities: { id: number; activity: string }[];
+  activities: { id: number; activity: DateActivity }[];
   email_sent: boolean;
   email_sent_at: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface AuthResponse {
@@ -105,20 +130,42 @@ export interface AuthResponse {
   tokens: { access: string; refresh: string };
 }
 
+export interface RegisterData {
+  username: string;
+  password: string;
+  password_confirm: string;
+  email_partner1: string;
+  email_partner2: string;
+}
+
+export type ProfileUpdate = Partial<Pick<ApiUser, "username" | "email_partner1" | "email_partner2">>;
+
+export interface DatePlanInput {
+  date: string;
+  time?: string | null;
+  location?: string;
+  excitement?: number;
+  activity_keys?: DateActivity[];
+}
+
+export interface InvitationResponse {
+  detail: string;
+  plan: ApiDatePlan;
+  sent_to: string[];
+}
+
+const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
+
 // ─── Auth endpoints ──────────────────────────────────────────────────────────
 export const apiAuth = {
-  register: (data: {
-    username: string; password: string; password_confirm: string;
-    email_partner1: string; email_partner2: string;
-  }) => apiFetch<AuthResponse>("/auth/register/", { method: "POST", body: JSON.stringify(data) }),
+  register: (data: RegisterData) => apiFetch<AuthResponse>("/auth/register/", json("POST", data)),
 
   login: (username: string, password: string) =>
-    apiFetch<AuthResponse>("/auth/login/", { method: "POST", body: JSON.stringify({ username, password }) }),
+    apiFetch<AuthResponse>("/auth/login/", json("POST", { username, password })),
 
   me: () => apiFetch<ApiUser>("/auth/me/"),
 
-  updateProfile: (data: { username?: string; email_partner1?: string; email_partner2?: string }) =>
-    apiFetch<ApiUser>("/auth/me/", { method: "PATCH", body: JSON.stringify(data) }),
+  updateProfile: (data: ProfileUpdate) => apiFetch<ApiUser>("/auth/me/", json("PATCH", data)),
 
   uploadAvatar: (file: File) => {
     const form = new FormData();
@@ -128,20 +175,14 @@ export const apiAuth = {
 };
 
 // ─── Date plan endpoints ─────────────────────────────────────────────────────
-export const apiDates: {
-  list: () => Promise<ApiDatePlan[]>;
-  create: (data: { date: string; time?: string; location?: string; excitement?: number; activity_keys?: string[] }) => Promise<ApiDatePlan>;
-  update: (id: number, data: { date?: string; time?: string; location?: string; excitement?: number; activity_keys?: string[] }) => Promise<ApiDatePlan>;
-  delete: (id: number) => Promise<void>;
-  sendInvitation: (id: number) => Promise<{ detail: string; sent_to: string[] }>;
-} = {
+export const apiDates = {
   list: () => apiFetch<ApiDatePlan[]>("/dates/"),
 
-  create: (data) => apiFetch<ApiDatePlan>("/dates/", { method: "POST", body: JSON.stringify(data) }),
+  create: (data: DatePlanInput) => apiFetch<ApiDatePlan>("/dates/", json("POST", data)),
 
-  update: (id, data) => apiFetch<ApiDatePlan>(`/dates/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<DatePlanInput>) => apiFetch<ApiDatePlan>(`/dates/${id}/`, json("PATCH", data)),
 
-  delete: (id) => apiFetch<void>(`/dates/${id}/`, { method: "DELETE" }),
+  delete: (id: number) => apiFetch<void>(`/dates/${id}/`, { method: "DELETE" }),
 
-  sendInvitation: (id) => apiFetch<{ detail: string; sent_to: string[] }>(`/dates/${id}/send/`, { method: "POST" }),
+  sendInvitation: (id: number) => apiFetch<InvitationResponse>(`/dates/${id}/send/`, { method: "POST" }),
 };

@@ -6,13 +6,13 @@ export type DateStep =
   | "home"
   | "great"
   | "sad"
-  | "understanding"
   | "free-date"
   | "proposal"
   | "excited"
   | "end";
 
 // ─── Activities ──────────────────────────────────────────────────────────────
+// Doit rester synchronisé avec ACTIVITY_CHOICES (sweet_date_api/api/models.py).
 export type DateActivity = "walk" | "movie" | "meal" | "game" | "other" | "photos";
 
 export interface ActivityMeta {
@@ -30,8 +30,7 @@ export const ACTIVITY_LIST: ActivityMeta[] = [
   { key: "photos", label: "Prendre des photos", emoji: "📸" },
 ];
 
-// ─── Misc ─────────────────────────────────────────────────────────────────────
-export interface DateSelection {
-  date: string;
-  time: string;
+export function activityLabel(key: string): string {
+  const meta = ACTIVITY_LIST.find(a => a.key === key);
+  return meta ? `${meta.emoji} ${meta.label}` : key;
 }
