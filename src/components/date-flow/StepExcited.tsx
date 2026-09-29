@@ -13,7 +13,7 @@ export function StepExcited({ excitement, onChange, onNext, onBack, saving, erro
       <div className="text-7xl animate-pulse-heart select-none">🐱</div>
       <h1 className="font-display text-3xl text-rose-600 italic">Note ton niveau d'excitation</h1>
       <div className="w-full px-4">
-        <input type="range" min={0} max={100} value={excitement}
+        <input type="range" min={0} max={100} value={excitement} aria-label="Niveau d'excitation"
           onChange={e => onChange(Number(e.target.value))} className="w-full" />
         <div className="flex justify-between text-rose-300 text-sm mt-1 font-body">
           <span>Calme 😌</span>
@@ -23,8 +23,8 @@ export function StepExcited({ excitement, onChange, onNext, onBack, saving, erro
       </div>
       {error && <p className="text-rose-400 text-sm">{error}</p>}
       <div className="flex gap-3 w-full">
-        <button className="btn-romantic flex-1 !bg-rose-200 text-rose-600 py-3" onClick={onBack}>← Retour</button>
-        <button className="btn-romantic flex-1 py-3" onClick={onNext} disabled={saving}>
+        <button className="btn-romantic flex-1 !bg-rose-200 text-rose-600 py-3" onClick={onBack} disabled={saving}>← Retour</button>
+        <button className="btn-romantic flex-1 py-3 disabled:opacity-60" onClick={onNext} disabled={saving}>
           {saving ? "Sauvegarde..." : "Continuer 💗"}
         </button>
       </div>
