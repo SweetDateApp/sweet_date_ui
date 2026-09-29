@@ -1,58 +1,42 @@
+import type { ReactNode } from "react";
 import type { AppPage } from "../types";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
+import { Avatar } from "./Avatar";
 
 interface Props {
   currentPage: AppPage;
   onNavigate: (page: AppPage) => void;
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL?.replace("/api", "") ?? "http://localhost:8000";
-
 export function Navbar({ currentPage, onNavigate }: Props) {
   const { user, logout } = useAuth();
 
-  const avatarSrc = user?.avatar
-    ? (user.avatar.startsWith("http") ? user.avatar : `${BASE_URL}${user.avatar}`)
-    : null;
-
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-rose-100 shadow-sm">
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        {/* Logo */}
+      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
         <button
           onClick={() => onNavigate("date-flow")}
-          className="font-display text-xl text-rose-500 italic hover:text-rose-600 transition-colors"
+          className="font-display text-xl text-rose-500 italic hover:text-rose-600 transition-colors whitespace-nowrap"
         >
-          💗 Sweet Date
+          💗 <span className="hidden sm:inline">Sweet Date</span>
         </button>
 
-        {/* Nav links */}
         <div className="flex items-center gap-1">
           <NavBtn active={currentPage === "date-flow"} onClick={() => onNavigate("date-flow")}>
-            🗓️ Nouveau date
+            🗓️ <span className="hidden sm:inline">Nouveau date</span>
           </NavBtn>
           <NavBtn active={currentPage === "profile"} onClick={() => onNavigate("profile")}>
-            👤 Profil
+            👤 <span className="hidden sm:inline">Profil</span>
           </NavBtn>
         </div>
 
-        {/* User info + logout */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => onNavigate("profile")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            {avatarSrc ? (
-              <img src={avatarSrc} alt="avatar"
-                className="w-8 h-8 rounded-full object-cover border-2 border-rose-200" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-rose-100 border-2 border-rose-200 flex items-center justify-center text-rose-400 text-sm font-bold">
-                {user?.username?.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="text-rose-500 text-sm font-body font-medium hidden sm:block">
-              {user?.username}
-            </span>
+            <Avatar user={user} size="sm" />
+            <span className="text-rose-500 text-sm font-body font-medium hidden sm:block">{user?.username}</span>
           </button>
           <button
             onClick={logout}
@@ -66,14 +50,13 @@ export function Navbar({ currentPage, onNavigate }: Props) {
   );
 }
 
-function NavBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function NavBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       className={`px-3 py-1.5 rounded-xl text-sm font-body font-medium transition-all ${
-        active
-          ? "bg-rose-100 text-rose-600"
-          : "text-rose-300 hover:text-rose-500 hover:bg-rose-50"
+        active ? "bg-rose-100 text-rose-600" : "text-rose-300 hover:text-rose-500 hover:bg-rose-50"
       }`}
     >
       {children}

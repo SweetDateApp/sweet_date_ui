@@ -1,32 +1,15 @@
-import { useEffect, useState } from "react";
-import { apiDates, ApiError } from "../../lib/api";
+import type { ApiDatePlan } from "../../lib/api";
 import { ACTIVITY_LIST } from "../../types";
 
-interface BarData { key: string; label: string; emoji: string; count: number; }
+interface Props { plans: ApiDatePlan[]; loading: boolean; error: string; }
 
-export function ActivityChart() {
-  const [bars,    setBars]    = useState<BarData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
-
-  useEffect(() => {
-    apiDates.list()
-      .then(plans => {
-        // Compter les occurrences de chaque activité sur tous les plans
-        const counts: Record<string, number> = {};
-        plans.forEach(plan =>
-          plan.activities.forEach(a => {
-            counts[a.activity] = (counts[a.activity] ?? 0) + 1;
-          })
-        );
-        const data: BarData[] = ACTIVITY_LIST.map(({ key, label, emoji }) => ({
-          key, label, emoji, count: counts[key] ?? 0,
-        })).sort((a, b) => b.count - a.count);
-        setBars(data);
-      })
-      .catch(e => setError(e instanceof ApiError ? e.message : "Erreur"))
-      .finally(() => setLoading(false));
-  }, []);
+export function ActivityChart({ plans, loading, error }: Props) {
+  // Nombre d'occurrences de chaque activité sur tous les plans
+  const counts: Record<string, number> = {};
+  plans.forEach(plan => plan.activities.forEach(a => { counts[a.activity] = (counts[a.activity] ?? 0) + 1; }));
+  const bars = ACTIVITY_LIST
+    .map(({ key, label, emoji }) => ({ key, label, emoji, count: counts[key] ?? 0 }))
+    .sort((a, b) => b.count - a.count);
 
   if (loading) return <div className="text-rose-300 text-center py-6 font-body">Chargement...</div>;
   if (error)   return <div className="text-rose-400 text-center py-4 font-body">{error}</div>;
