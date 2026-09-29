@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth, type RegisterData } from "../context/AuthContext";
 import { ApiError } from "../lib/api";
-import loginGif from "../assets/login.gif";
+import heartSD from "../assets/SD.png";
 
 interface LoginPageProps { onLogin: () => void; }
 
@@ -64,7 +64,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     <div className="fixed inset-0 bg-rose-50 flex items-center justify-center overflow-y-auto py-8">
       <div className="flex flex-col items-center gap-4 w-full max-w-sm px-6 animate-slide-up">
         <div className="animate-float text-7xl mb-1 select-none">
-          <img src={loginGif} alt="love loading" />
+          <img src={heartSD} alt="love loading" />
         </div>
         <h1 className="font-display text-3xl text-rose-600 text-center italic">Sweet Date</h1>
 

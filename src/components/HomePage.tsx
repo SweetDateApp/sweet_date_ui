@@ -205,6 +205,7 @@ export function HomePage({ onYes, onNo }: HomePageProps) {
             ))}
           </div>
           <button className="btn-romantic text-lg px-10 py-4" onClick={() => go("excited")}>Continuer</button>
+          <button className="btn-romantic text-lg px-10 py-4" onClick={() => go("free-date")}>Retour</button>
         </div>
       )}
 
@@ -226,6 +227,7 @@ export function HomePage({ onYes, onNo }: HomePageProps) {
           <button className="btn-romantic text-lg px-10 py-4" onClick={handleFinish} disabled={saving}>
             {saving ? "Sauvegarde..." : "Continuer 💗"}
           </button>
+          <button className="btn-romantic text-lg px-10 py-4" onClick={() => go("proposal")}>Retour</button>
         </div>
       )}
 
